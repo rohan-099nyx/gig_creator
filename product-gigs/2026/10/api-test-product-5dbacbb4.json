@@ -1,0 +1,30 @@
+{
+  "saved_at": "2026-10-13T21:11:04.707185+00:00",
+  "file_path": "product-gigs/2026/10/api-test-product-5dbacbb4.json",
+  "product_name": "API Test Product",
+  "category": "Test",
+  "sales_title": "API Test Product",
+  "description": "A placeholder product entry used to test the gig creator API save operation. This is not a real product listing.",
+  "price": "0 INR",
+  "highlights": [
+    "Placeholder entry for API connectivity testing",
+    "Not intended for commercial sale",
+    "Product details are not verified"
+  ],
+  "image_notes": [
+    "No public product image URL was provided; image links are empty."
+  ],
+  "tags": [
+    "api-test",
+    "placeholder",
+    "test-entry"
+  ],
+  "email_copy": {
+    "subject": "API Save Operation Test",
+    "body": "This placeholder entry was submitted to test the gig creator API save operation. It does not represent a real product."
+  },
+  "source_notes": [
+    "Test data only; no actual product details were provided.",
+    "Price set to 0 INR solely for this API test."
+  ]
+}
