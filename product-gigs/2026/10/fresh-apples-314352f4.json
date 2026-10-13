@@ -1,0 +1,22 @@
+{
+  "saved_at": "2026-10-13T20:38:15.402153+00:00",
+  "file_path": "product-gigs/2026/10/fresh-apples-314352f4.json",
+  "product_name": "Fresh Apples",
+  "category": "Fresh Fruit",
+  "sales_title": "Fresh Apples - Rs.128",
+  "description": "Crisp fresh apples.",
+  "price": "128 INR",
+  "highlights": [
+    "Great for snacking"
+  ],
+  "tags": [
+    "apple"
+  ],
+  "email_copy": {
+    "subject": "Fresh Apples",
+    "body": "Available at Rs.128"
+  },
+  "source_notes": [
+    "Variety unknown"
+  ]
+}
