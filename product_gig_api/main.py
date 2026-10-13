@@ -68,24 +68,57 @@ class EmailCopy(BaseModel):
 
 
 class ProductGigPayload(BaseModel):
+    model_config = {"populate_by_name": True, "extra": "allow"}
+
     product_name: str = Field(..., description="Short product name")
     category: str | None = Field(None, description="Product category")
-    sales_title: str = Field(..., description="Concise sales title (≤ 80 chars)")
+
+    # GPT sometimes sends short_title instead of sales_title — accept both
+    sales_title: str | None = Field(None, alias="sales_title", description="Concise sales title")
+    short_title: str | None = Field(None, description="Alias for sales_title used by some GPT versions")
+
     description: str = Field(..., description="Marketing listing description")
-    price: str | None = Field(None, description="Price with currency symbol, e.g. ₹289")
+
+    # price can arrive as a string ("₹289") or a bare number (128)
+    price: str | int | float | None = Field(None, description="Price – string or number")
+    currency: str | None = Field(None, description="Currency code e.g. INR, USD")
+
     highlights: list[str] = Field(default_factory=list)
     specifications: dict[str, Any] = Field(default_factory=dict)
-    image_links: list[str] = Field(
-        default_factory=list,
-        description="Only verified HTTPS image URLs; empty when none are available",
-    )
+    image_links: list[str] = Field(default_factory=list)
+    image_notes: list[str] = Field(default_factory=list, description="Notes about missing image URLs")
     tags: list[str] = Field(default_factory=list)
+
+    # Nested social/email objects
     social_copy: SocialCopy | None = None
     email_copy: EmailCopy | None = None
-    source_notes: list[str] = Field(
-        default_factory=list,
-        description="Unknown or unverified details noted by the GPT",
-    )
+
+    # Flat email fields the GPT sometimes sends instead of nested email_copy
+    email_subject: str | None = Field(None, description="Flat email subject (merged into email_copy)")
+    email_body: str | None = Field(None, description="Flat email body (merged into email_copy)")
+
+    source_notes: list[str] = Field(default_factory=list)
+
+    def resolved_sales_title(self) -> str:
+        """Return whichever title field is populated, with a safe fallback."""
+        return self.sales_title or self.short_title or self.product_name
+
+    def resolved_price(self) -> str | None:
+        """Return price as a clean string, combining currency if separate."""
+        if self.price is None:
+            return None
+        price_str = str(self.price)
+        if self.currency and not any(c in price_str for c in ["₹", "$", "€", "£", self.currency]):
+            return f"{price_str} {self.currency}"
+        return price_str
+
+    def resolved_email_copy(self) -> dict | None:
+        """Merge flat subject/body into email_copy structure."""
+        subj = (self.email_copy and self.email_copy.subject) or self.email_subject
+        body = (self.email_copy and self.email_copy.body) or self.email_body
+        if subj or body:
+            return {"subject": subj, "body": body}
+        return None
 
 
 # ---------------------------------------------------------------------------
@@ -192,12 +225,27 @@ async def save_product_gig(
     filename = f"{name_slug}-{uid_short}.json"
     file_path = f"{GITHUB_DIR}/{year}/{month}/{filename}"
 
-    # Build the JSON document to store
+    # Build a clean, normalised document regardless of which field variants GPT sent
     document: dict[str, Any] = {
         "saved_at": now.isoformat(),
         "file_path": file_path,
-        **payload.model_dump(exclude_none=True),
+        "product_name": payload.product_name,
+        "category": payload.category,
+        "sales_title": payload.resolved_sales_title(),
+        "description": payload.description,
+        "price": payload.resolved_price(),
+        "highlights": payload.highlights,
+        "specifications": payload.specifications,
+        "image_links": payload.image_links,
+        "image_notes": payload.image_notes,
+        "tags": payload.tags,
+        "social_copy": payload.social_copy.model_dump(exclude_none=True) if payload.social_copy else None,
+        "email_copy": payload.resolved_email_copy(),
+        "source_notes": payload.source_notes,
     }
+    # Strip None values for a clean file
+    document = {k: v for k, v in document.items() if v is not None and v != [] and v != {}}
+
     content_bytes = json.dumps(document, ensure_ascii=False, indent=2).encode("utf-8")
 
     commit_msg = f"gig: add {name_slug} [{uid_short}]"
@@ -212,3 +260,4 @@ async def save_product_gig(
             "download_url": result["download_url"],
         },
     )
+
