@@ -1,0 +1,177 @@
+openapi: "3.1.0"
+
+info:
+  title: Product Gig GitHub API
+  description: >
+    Saves a Custom-GPT-generated product gig as a uniquely-named JSON file
+    committed to a GitHub repository under product-gigs/YYYY/MM/.
+  version: "1.0.0"
+
+servers:
+  - url: https://YOUR-DEPLOYED-API.onrender.com
+    description: >
+      Replace this URL with your actual Render service URL before pasting
+      this schema into the ChatGPT Action editor.
+
+paths:
+  /:
+    get:
+      operationId: healthCheck
+      summary: Service health check
+      responses:
+        "200":
+          description: Service is running
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  service:
+                    type: string
+                    example: product-gig-github-api
+
+  /products:
+    post:
+      operationId: saveProductGigToGitHub
+      summary: Save a product gig JSON file to GitHub
+      description: >
+        Validates the X-Action-Key header, builds a unique filename from
+        the product name and a UUID fragment, and commits the gig payload
+        as a JSON file under product-gigs/YYYY/MM/ in the configured
+        GitHub repository. Returns the file path and public GitHub URL.
+      security:
+        - ActionKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProductGigPayload"
+      responses:
+        "201":
+          description: Gig saved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SaveResponse"
+        "401":
+          description: Invalid or missing X-Action-Key
+        "422":
+          description: Validation error – required fields missing or malformed
+        "502":
+          description: GitHub API returned an unexpected error
+
+components:
+  securitySchemes:
+    ActionKeyAuth:
+      type: apiKey
+      in: header
+      name: X-Action-Key
+
+  schemas:
+    SocialCopy:
+      type: object
+      properties:
+        instagram:
+          type: string
+          description: Instagram caption
+        facebook:
+          type: string
+          description: Facebook post copy
+        whatsapp:
+          type: string
+          description: WhatsApp message copy
+
+    EmailCopy:
+      type: object
+      properties:
+        subject:
+          type: string
+          description: Email subject line
+        body:
+          type: string
+          description: Email body text
+
+    ProductGigPayload:
+      type: object
+      required:
+        - product_name
+        - sales_title
+        - description
+      properties:
+        product_name:
+          type: string
+          description: Short product name (e.g. "Stainless Steel Water Bottle")
+        category:
+          type: string
+          description: Product category (e.g. "Kitchen & Dining")
+        sales_title:
+          type: string
+          maxLength: 80
+          description: Concise, attention-grabbing sales title
+        description:
+          type: string
+          description: Full marketing listing description
+        price:
+          type: string
+          description: >
+            Price with currency symbol exactly as provided by the user
+            (e.g. "₹289"). Omit if unknown.
+        highlights:
+          type: array
+          items:
+            type: string
+          description: Bullet-point highlights (3–6 items)
+        specifications:
+          type: object
+          additionalProperties: true
+          description: >
+            Key-value specification table. Only include values that are
+            known or verifiable; use the string "unknown" for uncertain ones.
+        image_links:
+          type: array
+          items:
+            type: string
+            format: uri
+          description: >
+            Verified public HTTPS image URLs only. Leave empty when no
+            public URL is available and explain that hosting is needed.
+        tags:
+          type: array
+          items:
+            type: string
+          description: Searchable keyword tags
+        social_copy:
+          $ref: "#/components/schemas/SocialCopy"
+        email_copy:
+          $ref: "#/components/schemas/EmailCopy"
+        source_notes:
+          type: array
+          items:
+            type: string
+          description: >
+            List of details the GPT could not verify from appearance alone
+            (e.g. "Exact capacity unknown – label not visible in photos").
+
+    SaveResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: saved
+        file_path:
+          type: string
+          description: >
+            Repository-relative path of the committed file
+            (e.g. product-gigs/2026/10/stainless-steel-water-bottle-a1b2c3d4.json)
+        github_url:
+          type: string
+          format: uri
+          description: Public GitHub HTML URL to view the committed file
+        download_url:
+          type: string
+          format: uri
+          description: Direct raw download URL of the committed JSON file
